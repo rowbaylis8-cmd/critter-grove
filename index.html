@@ -75,10 +75,25 @@ h2{margin:4px 0 10px;font-size:20px}h3{margin:14px 0 8px;font-size:15px;color:#c
 #hatch{position:fixed;inset:0;z-index:45;background:radial-gradient(#2f4250,#11181d);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}
 #hatch.on{display:flex}.eggw{animation:eggw .5s ease-in-out infinite}@keyframes eggw{25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
 .stat{display:grid;grid-template-columns:38px 1fr 34px;gap:6px;align-items:center;font-size:12px;margin:3px 0}
+
+/* realism pass */
+.cr:not(.lite){filter:drop-shadow(0 8px 6px #0005) drop-shadow(0 0 1px #0003)}
+#encMon>svg{animation:encbob 2.6s ease-in-out infinite;transform-origin:50% 100%}
+@keyframes encbob{0%,100%{transform:translateY(0) scale(1,1)}50%{transform:translateY(-7px) scale(.985,1.02)}}
+#encMon.rareglow::before{content:"";position:absolute;left:10%;right:10%;top:15%;bottom:5%;border-radius:50%;background:radial-gradient(#fff4b0aa,#ffd34a33 45%,transparent 70%);animation:glow 1.8s ease-in-out infinite;pointer-events:none}
+#ballSh{position:absolute;left:0;top:0;width:44px;height:12px;border-radius:50%;background:radial-gradient(#0008,transparent 70%);pointer-events:none;opacity:0;will-change:transform}
+#todTint{position:absolute;inset:0;pointer-events:none;transition:background 2s;z-index:1}
+#encTint{position:absolute;inset:0;pointer-events:none}
+.hflash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 45%,#fff,#fff8 30%,transparent 70%);animation:hflash .9s ease-out forwards;z-index:47}@keyframes hflash{from{opacity:1}to{opacity:0}}
+#hEgg svg{filter:drop-shadow(0 0 14px #fff6) drop-shadow(0 10px 8px #0006)}
+.eggw.fast{animation-duration:.22s}
+.mon{transition:transform .12s}.mon:active{transform:scale(.96)}
+#muteBtn{position:fixed;left:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:43;width:40px;height:40px;border-radius:50%;padding:0;font-size:18px;background:#141c22cc;border:1px solid #ffffff22}
+@media (prefers-reduced-motion:reduce){#encMon>svg,.eggw{animation:none}}
 </style></head><body>
 <div id="app">
 <div id="views">
- <section class="view on" id="v-map"><canvas id="map"></canvas>
+ <section class="view on" id="v-map"><canvas id="map"></canvas><div id="todTint"></div>
   <div class="hud"><div id="buddyPortrait"></div><div class="pill" style="flex:1"><b id="hudRegion">—</b><div class="muted" id="hudBiome"></div></div><div class="pill">🪙 <b id="hudCoins">0</b></div></div>
   <div id="banner"></div>
   <div class="side"><button id="bNearby" aria-label="Nearby">👁</button><button id="bFly" aria-label="Fly">✈</button><button id="bCenter" aria-label="Recenter">◎</button></div>
@@ -92,17 +107,17 @@ h2{margin:4px 0 10px;font-size:20px}h3{margin:14px 0 8px;font-size:15px;color:#c
 <nav id="nav"></nav>
 </div>
 <div id="scrim"></div><div class="sheet" id="sheet"></div>
-<div id="enc"><div id="encBg"></div><div id="encTop"></div><div id="ringOuter"></div><div id="encMon"></div><div id="ring"></div><div id="throwTxt"></div><div id="ball"></div><div id="encBottom"></div><div id="battle"></div></div>
+<div id="enc"><div id="encBg"></div><div id="encTint"></div><div id="encTop"></div><div id="ringOuter"></div><div id="encMon"></div><div id="ring"></div><div id="throwTxt"></div><div id="ballSh"></div><div id="ball"></div><div id="encBottom"></div><div id="battle"></div></div>
 <div id="hatch"></div><canvas id="fx"></canvas><div id="toast"></div>
 <script>
 "use strict";
 /* ================= NAMES: all trademark-sensitive display names live here ================= */
 var NAMES={
  app:"Critter Grove", brand:"Grove",
- balls:{poke:"Grove Orb",great:"Swift Orb",ultra:"Prime Orb",master:"Crown Orb",premier:"Honour Orb",beast:"Rift Orb",safari:"Wildpark Orb"},
+ balls:{grove:"Grove Orb",swift:"Swift Orb",prime:"Prime Orb",crown:"Crown Orb",honour:"Honour Orb",rift:"Rift Orb",wildpark:"Wildpark Orb"},
  ubClass:"Riftborn", stop:"Supply Post", gym:"Den",
  masterPack:"Crown Orb pack (3 orbs)",
- regions:{kanto:"Ashvale",johto:"Bramblemoor",hoenn:"Tidereach",sinnoh:"Frostmere",unova:"Skyhaven",kalos:"Lumiere Coast",alola:"Sunreef Isles",galar:"Thornfield",paldea:"Saffron Mesa",safari:"Wildpark Reserve",
+ regions:{ashvale:"Ashvale",bramblemoor:"Bramblemoor",tidereach:"Tidereach",frostmere:"Frostmere",skyhaven:"Skyhaven",lumiere:"Lumiere Coast",sunreef:"Sunreef Isles",thornfield:"Thornfield",saffron:"Saffron Mesa",wildpark:"Wildpark Reserve",
   frostfell:"Frostfell Tundra",nightshade:"Nightshade Woods",echo:"Echo Caves",blossom:"Blossom Fields",meadow:"Sunny Meadow",mossy:"Mossy Forest",ember:"Ember Volcano",
   cloud:"Cloud Cliffs",dune:"Dune Sea",savanna:"Sunscorch Savanna",jungle:"Emerald Jungle",andes:"Stone Peaks",coral:"Coral Coast",outback:"Red Outback",fjord:"Mistfjord Sounds",
   polar:"Polar Icefield",aurora:"Aurora Shelf",steppe:"Windswept Steppe",taiga:"Pinegloom Taiga",pampas:"Silver Pampas"}
@@ -158,11 +173,11 @@ var BERRIES={honey:{n:"Honeyplum",xp:40,fav:["Grass","Spring","Sky","Bug"],catch
  golden:{n:"Goldenpear",xp:120,fav:[],catch:2.5,col:"#e0b030",d:"Catch ×2.5"},ember:{n:"Emberfig",xp:70,fav:["Fire","Rock","Solar"],col:"#c85a2a",d:"Feeding"},
  dew:{n:"Dewberry",xp:70,fav:["Water","Abyss","Ice"],col:"#3a6ac0",d:"Feeding"},moon:{n:"Moonbloom",xp:70,fav:["Ghost","Fae","Bug"],col:"#7a5ab0",d:"Feeding"}};
 var XPITEMS={snack:{n:"Growth Snack",xp:150},feast:{n:"Vigor Feast",xp:600}};
-var BALLS={poke:{m:1,c1:"#5fae4e",c2:"#7a5230",mark:"#d8f0a0",shop:1},great:{m:1.5,c1:"#2aa6a0",c2:"#c8962a",mark:"#bff3ea",shop:1},ultra:{m:2,c1:"#3b3f8f",c2:"#b8c0d8",mark:"#f2c84a",shop:1},
- master:{m:999,c1:"#e2b23a",c2:"#7a3fa0",mark:"#fff3c0"},premier:{m:1,c1:"#ece4cc",c2:"#7f9a6a",mark:"#c9b98a"},beast:{m:5,weak:.1,c1:"#1f4d5a",c2:"#0f2a30",mark:"#5ef0d0",shop:1},safari:{m:1.5,c1:"#c8a868",c2:"#5f7a34",mark:"#8a6a34"}};
-var BALL_ORDER=["poke","great","ultra","master","premier","beast","safari"];
-var BALL_DESC={poke:"Standard orb (×1)",great:"×1.5 catch rate",ultra:"×2 catch rate",master:"Always catches. Extremely rare",premier:"×1, reward-only",safari:"×1.5, only usable inside the "+NAMES.regions.safari+" event"};
-BALL_DESC.beast="×5 vs "+NAMES.ubClass+" class, ×0.1 otherwise";
+var BALLS={grove:{m:1,c1:"#5fae4e",c2:"#7a5230",mark:"#d8f0a0",shop:1},swift:{m:1.5,c1:"#2aa6a0",c2:"#c8962a",mark:"#bff3ea",shop:1},prime:{m:2,c1:"#3b3f8f",c2:"#b8c0d8",mark:"#f2c84a",shop:1},
+ crown:{m:999,c1:"#e2b23a",c2:"#7a3fa0",mark:"#fff3c0"},honour:{m:1,c1:"#ece4cc",c2:"#7f9a6a",mark:"#c9b98a"},rift:{m:5,weak:.1,c1:"#1f4d5a",c2:"#0f2a30",mark:"#5ef0d0",shop:1},wildpark:{m:1.5,c1:"#c8a868",c2:"#5f7a34",mark:"#8a6a34"}};
+var BALL_ORDER=["grove","swift","prime","crown","honour","rift","wildpark"];
+var BALL_DESC={grove:"Standard orb (×1)",swift:"×1.5 catch rate",prime:"×2 catch rate",crown:"Always catches. Extremely rare",honour:"×1, reward-only",wildpark:"×1.5, only usable inside the "+NAMES.regions.wildpark+" event"};
+BALL_DESC.rift="×5 vs "+NAMES.ubClass+" class, ×0.1 otherwise";
 var EGGS={meadow:{n:"Meadow Egg",km:2,min:6,col:"#9ac07a",lv:3,b:{}},sparkle:{n:"Sparkle Egg",km:5,min:15,col:"#7ab0d8",lv:6,b:{rare:2,epic:2,legendary:2}},
  star:{n:"Starlight Egg",km:10,min:30,col:"#a888d8",lv:10,b:{common:.2,rare:3,epic:5,legendary:6}},festive:{n:"Festive Egg",km:7,min:20,col:"#c84a4a",lv:6,b:{},seasonal:1}};
 var UP=[{k:"incub",n:"Extra Incubator",d:"+1 egg incubating at once",base:600,g:3,max:2},{k:"glove",n:"Throwing Glove",d:"+10% catch rate",base:400,g:2.2,max:5},
@@ -313,12 +328,12 @@ function ballSvg(k){var b=BALLS[k];/* original seed-pod orb design */
  var s='<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="bs'+k+'" cx="35%" cy="35%" r="75%"><stop offset="0" stop-color="#fff" stop-opacity=".65"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></radialGradient></defs>'+
  '<path d="M32 12 C48 12 58 26 56 40 C54 54 44 61 32 61 C20 61 10 54 8 40 C6 26 16 12 32 12Z" fill="'+b.c1+'" stroke="#1d1a14" stroke-width="2"/>'+
  '<path d="M32 16 C30 30 30 46 32 58 M20 18 C14 32 15 48 22 57 M44 18 C50 32 49 48 42 57" stroke="'+b.mark+'" stroke-width="1.6" fill="none" opacity=".55"/>';
- if(k==="great")s+='<path d="M14 40 Q32 48 50 40" stroke="'+b.mark+'" stroke-width="3" fill="none"/>';
- if(k==="ultra")s+='<path d="M32 28 l3 7 7 0 -5.5 4.5 2 7 -6.5 -4 -6.5 4 2 -7 -5.5 -4.5 7 0Z" fill="'+b.mark+'"/>';
- if(k==="master")s+='<path d="M20 44 L22 30 L28 37 L32 27 L36 37 L42 30 L44 44Z" fill="'+b.c2+'" stroke="#3a1a50" stroke-width="1.2"/>';
- if(k==="premier")s+='<circle cx="32" cy="38" r="5" fill="none" stroke="'+b.c2+'" stroke-width="2"/>';
- if(k==="beast")s+='<path d="M18 26 L26 36 L22 40 L34 52 M44 24 L38 34 L46 40" stroke="'+b.mark+'" stroke-width="2.4" fill="none" stroke-linecap="round"/>';
- if(k==="safari")s+='<circle cx="22" cy="32" r="4" fill="'+b.mark+'"/><circle cx="40" cy="28" r="3" fill="'+b.mark+'"/><circle cx="36" cy="46" r="3.5" fill="'+b.mark+'"/>';
+ if(k==="swift")s+='<path d="M14 40 Q32 48 50 40" stroke="'+b.mark+'" stroke-width="3" fill="none"/>';
+ if(k==="prime")s+='<path d="M32 28 l3 7 7 0 -5.5 4.5 2 7 -6.5 -4 -6.5 4 2 -7 -5.5 -4.5 7 0Z" fill="'+b.mark+'"/>';
+ if(k==="crown")s+='<path d="M20 44 L22 30 L28 37 L32 27 L36 37 L42 30 L44 44Z" fill="'+b.c2+'" stroke="#3a1a50" stroke-width="1.2"/>';
+ if(k==="honour")s+='<circle cx="32" cy="38" r="5" fill="none" stroke="'+b.c2+'" stroke-width="2"/>';
+ if(k==="rift")s+='<path d="M18 26 L26 36 L22 40 L34 52 M44 24 L38 34 L46 40" stroke="'+b.mark+'" stroke-width="2.4" fill="none" stroke-linecap="round"/>';
+ if(k==="wildpark")s+='<circle cx="22" cy="32" r="4" fill="'+b.mark+'"/><circle cx="40" cy="28" r="3" fill="'+b.mark+'"/><circle cx="36" cy="46" r="3.5" fill="'+b.mark+'"/>';
  return s+'<path d="M18 16 C22 6 42 6 46 16 C40 20 24 20 18 16Z" fill="'+b.c2+'" stroke="#1d1a14" stroke-width="2"/><path d="M32 8 C33 3 38 1 42 3 C40 7 36 8 32 8Z" fill="#6fbf4a" stroke="#1d1a14" stroke-width="1.5"/>'+
  '<path d="M32 12 C48 12 58 26 56 40 C54 54 44 61 32 61 C20 61 10 54 8 40 C6 26 16 12 32 12Z" fill="url(#bs'+k+')"/></svg>'}
 function eggSvg(col,cracks){return '<svg width="110" height="136" viewBox="0 0 64 80" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="eg'+col.slice(1)+'" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#fffdf6"/><stop offset=".7" stop-color="#e8e0cc"/><stop offset="1" stop-color="#b8ae98"/></radialGradient></defs><path d="M32 4 C12 4 4 42 6 54 C8 70 20 76 32 76 C44 76 56 70 58 54 C60 42 52 4 32 4Z" fill="url(#eg'+col.slice(1)+')" stroke="#8a826e"/><path d="M8 50 Q32 58 56 50" stroke="'+col+'" stroke-width="4" fill="none" opacity=".8"/><circle cx="22" cy="32" r="4" fill="'+col+'" opacity=".7"/><circle cx="40" cy="22" r="3" fill="'+col+'" opacity=".7"/>'+(cracks?'<path class="crk" d="M20 30 L26 36 L22 42 L30 46 L28 52 M44 26 L38 34 L44 40 L36 46" stroke="#3a3020" stroke-width="1.6" fill="none" stroke-dasharray="80" stroke-dashoffset="80" style="transition:stroke-dashoffset 1.2s"/>':'')+'</svg>'}
@@ -344,11 +359,11 @@ var BIOMES={meadow:{n:"Grassland",t:["Grass","Sky","Spring","Rock"],c:"#8fae5a"}
  spring:{n:"Flower fields",t:["Spring","Fae","Grass"],c:"#b8c878"},savanna:{n:"Savanna",t:["Fire","Sky","Grass","Solar"],c:"#c0a058"},desert:{n:"Desert",t:["Rock","Fire","Solar"],c:"#d8b878"},
  jungle:{n:"Jungle",t:["Grass","Bug","Water","Volt"],c:"#2f6a32"},urban:{n:"City",t:["Volt","Rock","Sky","Fae"],c:"#8a8a90"},ocean:{n:"Open sea",t:["Water","Abyss"],c:"#2a5a80"},polar:{n:"Ice sheet",t:["Ice","Frost"],c:"#e8f0f4"}};
 /* key, lon, lat, radius(deg), biome, continent, rare bias */
-var REGIONS=[["kanto",139.7,35.7,.9,"urban","Asia",1.2],["johto",135.6,34.9,.8,"forest","Asia",1.1],["hoenn",130.8,32.5,.9,"volcano","Asia",1.1],["sinnoh",142.8,43.4,1.4,"mount","Asia",1.2],
- ["unova",-74,40.7,1.3,"urban","North America",1.1],["kalos",2.3,47,2.2,"meadow","Europe",1.1],["alola",-157.5,20.8,1.8,"coast","Oceania",1.2],["galar",-1.8,53.6,1.5,"forest","Europe",1.1],["paldea",-3.7,40,2.4,"savanna","Europe",1.1],
+var REGIONS=[["ashvale",139.7,35.7,.9,"urban","Asia",1.2],["bramblemoor",135.6,34.9,.8,"forest","Asia",1.1],["tidereach",130.8,32.5,.9,"volcano","Asia",1.1],["frostmere",142.8,43.4,1.4,"mount","Asia",1.2],
+ ["skyhaven",-74,40.7,1.3,"urban","North America",1.1],["lumiere",2.3,47,2.2,"meadow","Europe",1.1],["sunreef",-157.5,20.8,1.8,"coast","Oceania",1.2],["thornfield",-1.8,53.6,1.5,"forest","Europe",1.1],["saffron",-3.7,40,2.4,"savanna","Europe",1.1],
  ["frostfell",-95,66,6,"arctic","North America",1.3],["nightshade",25,46,2,"night","Europe",1.3],["echo",110.3,25.3,1.6,"cave","Asia",1.3],["blossom",5,52.4,.7,"spring","Europe",1.2],
  ["meadow",-98,38,4,"meadow","North America",1],["mossy",-122.5,47,2.5,"forest","North America",1],["ember",159,55,3,"volcano","Asia",1.2],["cloud",86.9,28,3,"sky","Asia",1.3],
- ["steppe",70,48,6,"meadow","Asia",1],["taiga",100,60,8,"forest","Asia",1],["dune",10,24,6,"desert","Africa",1],["savanna",35,-2.5,4,"savanna","Africa",1.1],["safari",31.5,-24,2,"savanna","Africa",1.5],
+ ["steppe",70,48,6,"meadow","Asia",1],["taiga",100,60,8,"forest","Asia",1],["dune",10,24,6,"desert","Africa",1],["savanna",35,-2.5,4,"savanna","Africa",1.1],["wildpark",31.5,-24,2,"savanna","Africa",1.5],
  ["jungle",-62,-4,6,"jungle","South America",1.1],["andes",-70,-15,3.5,"mount","South America",1.2],["pampas",-62,-34,4,"meadow","South America",1],
  ["coral",147,-18,3,"coast","Oceania",1.1],["outback",133,-25,6,"desert","Oceania",1],["fjord",168,-45,2,"mount","Oceania",1.2],["polar",0,-80,10,"polar","Antarctica",1.2],["aurora",165,-77,4,"arctic","Antarctica",1.4]
 ].map(function(r){return{k:r[0],lon:r[1],lat:r[2],rad:r[3],biome:r[4],cont:r[5],rb:r[6]}});
@@ -361,7 +376,7 @@ function distM(a,b,c,d){var x=(c-a)*Math.cos((b+d)/2*Math.PI/180)*111320,y=(d-b)
 function offM(lon,lat,dx,dy){return[lon+dx/(111320*Math.cos(lat*Math.PI/180)),lat+dy/111320]}
 /* ================= state & storage ================= */
 var SAVE_KEY="critterGrove",VER=4,S;
-function def(){var k=REGIONS[0];return{v:VER,coins:300,mons:[],nu:1,buddy:0,gym:[],balls:{poke:30,great:5,ultra:0,master:0,premier:0,beast:0,safari:0},berries:{honey:5,silver:3,golden:0,ember:2,dew:2,moon:2},xpi:{snack:1,feast:0},
+function def(){var k=REGIONS[0];return{v:VER,coins:300,mons:[],nu:1,buddy:0,gym:[],balls:{grove:30,swift:5,prime:0,crown:0,honour:0,rift:0,wildpark:0},berries:{honey:5,silver:3,golden:0,ember:2,dew:2,moon:2},xpi:{snack:1,feast:0},
  eggs:[{k:"meadow",km:0,start:Date.now()}],dex:{seen:{},caught:{}},pos:{lon:k.lon,lat:k.lat},km:0,acc:{ball:0,buddy:0},stops:{},up:{incub:0,glove:0,harness:0,charm:0},
  set:{season:"always",geo:false,move:"tap",speed:20},last:Date.now(),throws:0,safariWin:-1,lastRegion:""}}
 var store=null;try{store=window.localStorage;var tk="__ct_t";store.setItem(tk,"1");store.removeItem(tk)}catch(e){store=null}
@@ -369,7 +384,9 @@ function num(v,d){v=Number(v);return isFinite(v)&&v>=0?v:d}
 function int(v,d){return Math.floor(num(v,d))}
 var OLD_MAP=[6,4,2,0,9,7,11,12,3,8,5,10,13,14];
 function newMon(id,l){var m={u:S.nu++,id:id,l:Math.max(1,Math.min(MAX_LV,l|0)),xp:0};S.dex.caught[id]=1;S.dex.seen[id]=1;return m}
-function sanitize(j){var s=def();S=s;if(!j||typeof j!=="object")return s;
+var LEGACY_IDS={region:{"kanto": "ashvale", "johto": "bramblemoor", "hoenn": "tidereach", "sinnoh": "frostmere", "unova": "skyhaven", "kalos": "lumiere", "alola": "sunreef", "galar": "thornfield", "paldea": "saffron"},ball:{"poke": "grove", "great": "swift", "ultra": "prime", "master": "crown", "premier": "honour", "beast": "rift", "safari": "wildpark"}};
+function migrateIds(j){if(!j||typeof j!=="object")return j;if(j.balls&&typeof j.balls==="object")for(var o in LEGACY_IDS.ball)if(j.balls[o]!==undefined){var nk=LEGACY_IDS.ball[o];j.balls[nk]=(+j.balls[nk]||0)+(+j.balls[o]||0);delete j.balls[o]}if(typeof j.lastRegion==="string"&&LEGACY_IDS.region[j.lastRegion])j.lastRegion=LEGACY_IDS.region[j.lastRegion];if(j.lastRegion==="safari")j.lastRegion="wildpark";return j}
+function sanitize(j){j=migrateIds(j);var s=def();S=s;if(!j||typeof j!=="object")return s;
  s.coins=Math.min(num(j.coins,s.coins),1e9);s.last=Math.min(num(j.last,Date.now()),Date.now());
  if(j.set&&typeof j.set==="object"){if(["always","auto","off"].indexOf(j.set.season)>=0)s.set.season=j.set.season;s.set.geo=j.set.geo===true;s.set.move=j.set.move==="joy"?"joy":"tap";var sp=num(j.set.speed,20);if([5,12,20,60].indexOf(sp)>=0)s.set.speed=sp}
  if(!(j.v>=4)){/* migrate v1-v3 idle saves: copies -> one individual per species, level from copies */
@@ -414,7 +431,7 @@ function FX(){var f={click:0,inc:1,flat:0,hatch:1,crit:0,critx:0,rare:1,disc:0,o
 function incomeH(){var f=FX(),list=[];var b=buddy();if(b)list.push(b);S.gym.forEach(function(u){var m=monBy(u);if(m&&m!==b)list.push(m)});
  var t=0;list.forEach(function(m){t+=(10+3*m.l)*[1,1.3,1.7,2.3,3.5][RANK[C[m.id].r]]});return (t+f.flat)*f.inc*(1+.25*S.up.harness)}
 function addCoins(n){S.coins+=n}
-function inSafari(){var r=regionAt(S.pos.lon,S.pos.lat);return !!r&&r.k==="safari"&&safariOpen()}
+function inSafari(){var r=regionAt(S.pos.lon,S.pos.lat);return !!r&&r.k==="wildpark"&&safariOpen()}
 function safariOpen(){return new Date().getMinutes()<30}
 /* ================= XP / evolution ================= */
 function giveXP(m,amt){var res={levels:0,evo:[],from:m.l};if(m.l>=MAX_LV)return res;m.xp+=Math.round(amt);
@@ -454,14 +471,14 @@ function drawMap(){var k=kx(),ctx=mx;ctx.setTransform(DPR,0,0,DPR,0,0);var near=
  if(!near){ctx.strokeStyle="#ffffff10";ctx.lineWidth=1;for(var lo=-180;lo<=180;lo+=30){var a=w2s(lo,90,k),b=w2s(lo,-90,k);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}for(var la=-60;la<=60;la+=30){a=w2s(-180,la,k);b=w2s(180,la,k);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}}
  for(var n in LAND){var P=LAND[n];ctx.beginPath();P.forEach(function(p,i){var s=w2s(p[0],p[1],k);i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1])});ctx.closePath();ctx.fillStyle=n==="Antarctica"||n==="Greenland"?"#dfe8ec":"#9caf7c";ctx.fill();if(!near){ctx.strokeStyle="#55684a";ctx.lineWidth=1;ctx.stroke()}}
  REGIONS.forEach(function(r){var c=w2s(r.lon,r.lat,k),rad=r.rad*cam.ppd;if(c[0]+rad*k<0||c[0]-rad*k>W||c[1]+rad<0||c[1]-rad>H)return;ctx.beginPath();ctx.ellipse(c[0],c[1],Math.max(3,rad*k*Math.cos(r.lat*Math.PI/180)),Math.max(3,rad),0,0,7);ctx.fillStyle=BIOMES[r.biome].c+(near?"cc":"88");ctx.fill();
-  if(!near){ctx.strokeStyle=r.k==="safari"&&safariOpen()?"#f0c060":"#ffffff66";ctx.lineWidth=r.k==="safari"&&safariOpen()?2.5:1;ctx.stroke()}});
+  if(!near){ctx.strokeStyle=r.k==="wildpark"&&safariOpen()?"#f0c060":"#ffffff66";ctx.lineWidth=r.k==="wildpark"&&safariOpen()?2.5:1;ctx.stroke()}});
  if(near)drawDecor(k);
  if(!near){ctx.textAlign="center";ctx.font="600 11px system-ui";if(cam.ppd<18){ctx.fillStyle="#ffffffaa";ctx.font="700 12px system-ui";CONT_LABELS.forEach(function(l){var s=w2s(l[1],l[2],k);ctx.fillText(l[0],s[0],s[1])})}
-  else REGIONS.forEach(function(r){var s=w2s(r.lon,r.lat,k);ctx.fillStyle="#141c22cc";var t=rname(r.k),w=ctx.measureText(t).width+10;ctx.fillRect(s[0]-w/2,s[1]-8,w,16);ctx.fillStyle=r.k==="safari"&&safariOpen()?"#f0c060":"#fff";ctx.fillText(t,s[0],s[1]+4)})}
+  else REGIONS.forEach(function(r){var s=w2s(r.lon,r.lat,k);ctx.fillStyle="#141c22cc";var t=rname(r.k),w=ctx.measureText(t).width+10;ctx.fillRect(s[0]-w/2,s[1]-8,w,16);ctx.fillStyle=r.k==="wildpark"&&safariOpen()?"#f0c060":"#fff";ctx.fillText(t,s[0],s[1]+4)})}
  if(near){var now=Date.now();
   visibleStops(k).forEach(function(st){var s=w2s(st.lon,st.lat,k),used=S.stops[st.key]&&now-S.stops[st.key]<300000;ctx.fillStyle="#0005";ctx.beginPath();ctx.ellipse(s[0],s[1]+2,9,3,0,0,7);ctx.fill();ctx.strokeStyle="#ddd";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(s[0],s[1]);ctx.lineTo(s[0],s[1]-16);ctx.stroke();ctx.fillStyle=used?"#9a6ad8":"#3aa8e8";ctx.beginPath();ctx.arc(s[0],s[1]-20,8,0,7);ctx.fill();ctx.strokeStyle="#fff";ctx.stroke()});
   picks.forEach(function(p){var s=w2s(p.lon,p.lat,k);ctx.fillStyle=BERRIES[p.b].col;ctx.beginPath();ctx.arc(s[0],s[1],5,0,7);ctx.fill();ctx.fillStyle="#3a7a2a";ctx.fillRect(s[0]-1,s[1]-9,2,4)});
-  spawns.forEach(function(sp){var s=w2s(sp.lon,sp.lat,k),im=monImg(sp.id),bob=Math.sin(now/600+sp.u)*1.5;ctx.fillStyle="#0004";ctx.beginPath();ctx.ellipse(s[0],s[1],14,4,0,0,7);ctx.fill();if(im.complete&&im.naturalWidth)ctx.drawImage(im,s[0]-26,s[1]-42+bob,52,44);else{ctx.fillStyle=TYPES[C[sp.id].t];ctx.beginPath();ctx.arc(s[0],s[1]-12,10,0,7);ctx.fill()}
+  spawns.forEach(function(sp){var s=w2s(sp.lon,sp.lat,k),im=monImg(sp.id),bob=Math.sin(now/600+sp.u)*1.5;if(RANK[C[sp.id].r]>=2){var gr=ctx.createRadialGradient(s[0],s[1]-18,2,s[0],s[1]-18,30),ga=.35+.2*Math.sin(now/300+sp.u);gr.addColorStop(0,'rgba(255,230,140,'+ga+')');gr.addColorStop(1,'rgba(255,230,140,0)');ctx.fillStyle=gr;ctx.fillRect(s[0]-30,s[1]-48,60,60)}ctx.fillStyle="#0004";ctx.beginPath();ctx.ellipse(s[0],s[1],14,4,0,0,7);ctx.fill();if(im.complete&&im.naturalWidth)ctx.drawImage(im,s[0]-26,s[1]-42+bob,52,44);else{ctx.fillStyle=TYPES[C[sp.id].t];ctx.beginPath();ctx.arc(s[0],s[1]-12,10,0,7);ctx.fill()}
    var left=sp.exp-now,tx=mmss(left);ctx.font="bold 10px sans-serif";ctx.textAlign="center";var tw=ctx.measureText(tx).width+8;ctx.fillStyle=left<30000?"#b03a2ecc":"#141c22cc";ctx.fillRect(s[0]-tw/2,s[1]+4,tw,13);ctx.fillStyle="#fff";ctx.fillText(tx,s[0],s[1]+14)});
   fades.forEach(function(fd){var sp=fd.sp,s=w2s(sp.lon,sp.lat,k),im=monImg(sp.id),a=Math.max(0,1-(now-fd.t0)/900);if(!(im.complete&&im.naturalWidth))return;ctx.save();ctx.globalAlpha=a;ctx.drawImage(im,s[0]-26,s[1]-42-(1-a)*24,52,44);ctx.restore()});
   var pl=w2s(S.pos.lon,S.pos.lat,k);ctx.strokeStyle="#7fd0ff44";ctx.lineWidth=1;ctx.beginPath();ctx.arc(pl[0],pl[1],120/111320*cam.ppd,0,7);ctx.stroke();
@@ -502,12 +519,12 @@ function moveStep(dt){if(geoActive())return;var sp=S.set.speed*dt,dx=0,dy=0;
   dx=(target[0]-S.pos.lon)*111320*Math.cos(S.pos.lat*Math.PI/180)*f;dy=(target[1]-S.pos.lat)*111320*f}
  if(dx||dy){var p=offM(S.pos.lon,S.pos.lat,dx,dy);S.pos.lon=Math.max(-180,Math.min(180,p[0]));S.pos.lat=Math.max(-85,Math.min(85,p[1]));onWalk(Math.sqrt(dx*dx+dy*dy))}}
 function onWalk(m){var f=FX();S.km+=m/1000;var inc=Math.max(1,1+S.up.incub);for(var i=0;i<S.eggs.length&&i<inc;i++)S.eggs[i].km+=m/1000*f.hatch;
- S.acc.ball+=m;if(S.acc.ball>=1000){S.acc.ball-=1000;S.balls.poke+=2;var ks=["honey","silver","ember","dew","moon"],bk=ks[Math.floor(Math.random()*ks.length)];S.berries[bk]++;toast("🚶 1 km walked: +2 "+NAMES.balls.poke+"s, +1 "+BERRIES[bk].n)}
+ S.acc.ball+=m;if(S.acc.ball>=1000){S.acc.ball-=1000;S.balls.grove+=2;var ks=["honey","silver","ember","dew","moon"],bk=ks[Math.floor(Math.random()*ks.length)];S.berries[bk]++;toast("🚶 1 km walked: +2 "+NAMES.balls.grove+"s, +1 "+BERRIES[bk].n)}
  S.acc.buddy+=m;var b=buddy();if(S.acc.buddy>=250){S.acc.buddy-=250;if(b){var r=giveXP(b,15*(1+.25*S.up.harness));if(r.levels)toast("🐾 "+xpMsg(b,r),3000);renderBuddy()}}
  picks=picks.filter(function(p){if(distM(p.lon,p.lat,S.pos.lon,S.pos.lat)<35){S.berries[p.b]++;toast("Picked up a "+BERRIES[p.b].n);return false}return true});
  checkRegion();checkEggs()}
 function checkRegion(){var r=regionAt(S.pos.lon,S.pos.lat),key=r?r.k:"";if(key!==S.lastRegion){S.lastRegion=key;if(r)toast("Entered "+rname(r.k)+" · "+BIOMES[r.biome].n)}
- if(r&&r.k==="safari"&&safariOpen()){var win=Math.floor(Date.now()/3600000);if(S.safariWin!==win){S.safariWin=win;S.balls.safari=20;toast("🦓 "+rname("safari")+" event! Received 20 "+NAMES.balls.safari+"s")}}
+ if(r&&r.k==="wildpark"&&safariOpen()){var win=Math.floor(Date.now()/3600000);if(S.safariWin!==win){S.safariWin=win;S.balls.wildpark=20;toast("🦓 "+rname("wildpark")+" event! Received 20 "+NAMES.balls.wildpark+"s")}}
  renderHud()}
 /* ================= geolocation (optional, relative) ================= */
 var geo={id:null,state:"off",last:null};
@@ -537,10 +554,10 @@ function mapTap(x,y){var k=kx();
  if(st){if(distM(st.lon,st.lat,S.pos.lon,S.pos.lat)<=120)spinStop(st);else{target=[st.lon,st.lat];toast("Walking to the "+NAMES.stop)}return}
  if(S.set.move==="tap"&&!geoActive()){var w=s2w(x,y,k);target=[w[0],w[1]];follow=true}}
 function spinStop(st){var now=Date.now();if(S.stops[st.key]&&now-S.stops[st.key]<300000){toast(NAMES.stop+" recharging ("+Math.ceil((300000-(now-S.stops[st.key]))/60000)+" min)");return}
- S.stops[st.key]=now;var got=[],n=2+Math.floor(Math.random()*3);S.balls.poke+=n;got.push(n+" "+NAMES.balls.poke+"s");if(Math.random()<.4){S.balls.great++;got.push("1 "+NAMES.balls.great)}if(Math.random()<.12){S.balls.ultra++;got.push("1 "+NAMES.balls.ultra)}
+ S.stops[st.key]=now;SFX.play("coin");var got=[],n=2+Math.floor(Math.random()*3);S.balls.grove+=n;got.push(n+" "+NAMES.balls.grove+"s");if(Math.random()<.4){S.balls.swift++;got.push("1 "+NAMES.balls.swift)}if(Math.random()<.12){S.balls.prime++;got.push("1 "+NAMES.balls.prime)}
  var ks=Object.keys(BERRIES),bk=ks[Math.floor(Math.random()*ks.length)];if(bk==="golden"&&Math.random()<.7)bk="honey";S.berries[bk]++;got.push("1 "+BERRIES[bk].n);
  if(Math.random()<.1){S.xpi.snack++;got.push("1 "+XPITEMS.snack.n)}if(Math.random()<.15&&S.eggs.length<9){var ek=Math.random()<.6?"meadow":Math.random()<.7?"sparkle":"star";S.eggs.push({k:ek,km:0,start:now});got.push("1 "+EGGS[ek].n)}
- if(Math.random()<.005){S.balls.master++;got.push("✨ 1 "+NAMES.balls.master+"!")}var cn=Math.round((10+Math.random()*20)*(1+.2*S.up.charm));addCoins(cn);got.push(cn+" coins");
+ if(Math.random()<.005){S.balls.crown++;got.push("✨ 1 "+NAMES.balls.crown+"!")}var cn=Math.round((10+Math.random()*20)*(1+.2*S.up.charm));addCoins(cn);got.push(cn+" coins");
  var f=FX();if(f.every)got.push("");toast("<b>"+NAMES.stop+"</b><br>"+got.filter(Boolean).join(" · "),3200);var s=w2s(st.lon,st.lat,kx());burst("spark",s[0]+MC.getBoundingClientRect().left,s[1]-20+MC.getBoundingClientRect().top,30,30);save()}
 /* joystick */
 (function(){var J=$("joy"),kn=J.firstChild,id=null;function mv(e){var r=J.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,d=Math.hypot(dx,dy),m=48;if(d>m){dx=dx/d*m;dy=dy/d*m}kn.style.transform="translate("+dx+"px,"+dy+"px)";joyV=[dx/m,dy/m];target=null;follow=true}
@@ -551,9 +568,9 @@ function frame(t){var dt=Math.min(.1,(t-(lastFrame||t))/1000);lastFrame=t;moveSt
 var encOn=false,E=null;
 function startEncounter(sp){encOn=true;var c=C[sp.id];E={sp:sp,c:c,l:sp.l,ball:pickBall(),berry:null,ring:0,t0:performance.now(),state:"ready",weak:false,battled:false,whp:0,throwN:0,cx:0,cy:0,ringPx:0};
  var biome=biomeAt(sp.lon,sp.lat),bc=BIOMES[biome].c;$("encBg").style.background="radial-gradient(ellipse 70% 12% at 50% 47%,#0000002a,transparent),linear-gradient(transparent 55%,#0007),linear-gradient(#7fa6c0 0%,#d6e2e2 37%,"+bc+" 38.5%,"+bc+" 100%)";
- $("encMon").innerHTML=art(c.id,220,false,true);$("encMon").style.opacity=1;$("enc").classList.add("on");$("battle").style.display="none";renderEncTop();renderEncBottom();resetBall();requestAnimationFrame(encLoop)}
-function pickBall(){if(inSafari()&&S.balls.safari>0)return "safari";var o=["poke","great","ultra","premier","beast"];for(var i=0;i<o.length;i++)if(S.balls[o[i]]>0)return o[i];return S.balls.master>0?"master":"poke"}
-function ballUsable(k){if(k==="safari")return inSafari();return true}
+ $("encMon").innerHTML=art(c.id,220,false,true);$("encMon").classList.toggle("rareglow",RANK[c.r]>=3);applyTint();$("encMon").style.opacity=1;$("enc").classList.add("on");$("battle").style.display="none";renderEncTop();renderEncBottom();resetBall();requestAnimationFrame(encLoop)}
+function pickBall(){if(inSafari()&&S.balls.wildpark>0)return "wildpark";var o=["grove","swift","prime","honour","rift"];for(var i=0;i<o.length;i++)if(S.balls[o[i]]>0)return o[i];return S.balls.crown>0?"crown":"grove"}
+function ballUsable(k){if(k==="wildpark")return inSafari();return true}
 function renderEncTop(){var c=E.c,m=lead();$("encTop").innerHTML='<div style="font-size:20px;font-weight:700;text-shadow:0 1px 3px #000">'+c.n+' <span style="font-size:14px">Lv '+E.l+'</span></div><div>'+typeTag(c.t)+' <span class="r-'+c.r+'" style="font-weight:700;text-shadow:0 1px 2px #000">'+c.r+'</span>'+(c.ub?' <span class="type" style="background:#6a2a8a">'+NAMES.ubClass+'</span>':'')+(E.weak?' <span class="type" style="background:#8a3a34">weakened ×2</span>':'')+(E.berry?' <span class="type" style="background:#5a6a3a">'+BERRIES[E.berry].n+'</span>':'')+'</div>'+
  '<div style="width:60%;margin:6px auto 0"><div class="bar"><i style="width:'+(E.l/MAX_LV*100)+'%"></i></div><div class="muted" style="color:#203038">Level '+E.l+' / '+MAX_LV+'</div></div>'+(m?'<div style="position:absolute;left:12px;top:calc(env(safe-area-inset-top) + 8px);width:96px;text-align:left;font-size:11px;text-shadow:0 1px 2px #000">Buddy '+C[m.id].n+' Lv '+m.l+'<div class="bar"><i style="width:'+(m.xp/need(m.l)*100)+'%"></i></div></div>':'')}
 function renderEncBottom(){$("encBottom").innerHTML='<button id="eRun" class="ghost">Run</button><button id="eBerry">🍇 Berry</button><button id="eBallSel">'+NAMES.balls[E.ball].replace(NAMES.brand+" ","")+' ×'+S.balls[E.ball]+'</button><button id="eBattle"'+(!lead()||E.battled?" disabled":"")+'>⚔ Battle</button>';
@@ -577,25 +594,25 @@ function encLoop(t){if(!encOn||!E)return;var el=$("encMon"),W2=innerWidth,mw=220
  function up(e){if(!drag)return;var d=drag;drag=null;var now=performance.now(),s=d.s.filter(function(q){return now-q[2]<150});if(s.length<4)s=d.s.slice(-4);var a=s[0],b=s[s.length-1]||a,dt=Math.max(16,b[2]-a[2]),vx=(b[0]-a[0])/dt,vy=(b[1]-a[1])/dt,f0=d.s[0],T=Math.max(16,b[2]-f0[2]),up0=f0[1]-b[1];if(!d.spin||Math.abs(d.spin)<5){var vyT=(b[1]-f0[1])/T;if(vyT<vy){vy=vyT;vx=(b[0]-f0[0])/T}}if(up0<40)vy=0;
   if(vy>-.12){E.state="ready";setBall(E.bx,E.by,1,0);return}throwBall(b[0]-31,b[1]-31,vx,vy,Math.abs(d.spin)>5?(d.spin>0?1:-1):0)}
  B.addEventListener("pointerup",up);B.addEventListener("pointercancel",function(){drag=null;if(E){E.state="ready";setBall(E.bx,E.by,1,0)}})})();
-function throwBall(x0,y0,vx,vy,curve){E.state="flying";S.balls[E.ball]--;S.throws++;E.throwN++;var rf=E.rf,rpx=E.ringPx,lx=x0+31+vx*200,ly=E.by+31+vy*470,ty=E.cy+10;if(ly>ty-170&&ly<ty+130)ly=ty+(ly-ty)*.4;if(Math.abs(lx-E.cx)<110)lx=E.cx+(lx-E.cx)*.6;var dur=650,t0=performance.now();renderEncBottom();
- (function step(t){var p=Math.min(1,(t-t0)/dur),x=x0+(lx-31-x0)*p+curve*70*Math.sin(Math.PI*p),y=y0+(ly-31-y0)*p-110*Math.sin(Math.PI*p);setBall(x,y,1-.45*p,p*720*(curve||1));if(p<1){requestAnimationFrame(step);return}
-  var hit=Math.abs(lx-E.cx)<75&&Math.abs(ly-(E.cy+10))<70;if(!hit){showTxt("Miss");setTimeout(resetBall,700);return}
+function throwBall(x0,y0,vx,vy,curve){E.state="flying";SFX.play("throw");var sh=$("ballSh");sh.style.opacity=.9;S.balls[E.ball]--;S.throws++;E.throwN++;var rf=E.rf,rpx=E.ringPx,lx=x0+31+vx*200,ly=E.by+31+vy*470,ty=E.cy+10;if(ly>ty-170&&ly<ty+130)ly=ty+(ly-ty)*.4;if(Math.abs(lx-E.cx)<110)lx=E.cx+(lx-E.cx)*.6;var dur=650,t0=performance.now();renderEncBottom();
+ (function step(t){var p=Math.min(1,(t-t0)/dur),x=x0+(lx-31-x0)*p+curve*70*Math.sin(Math.PI*p),y=y0+(ly-31-y0)*p-110*Math.sin(Math.PI*p);setBall(x,y,1-.45*p,p*720*(curve||1));var gy=y0+(ly-31-y0)*p+50,ss=.6+.4*(1-Math.sin(Math.PI*p));sh.style.transform="translate("+(x+9)+"px,"+gy+"px) scale("+ss+")";sh.style.opacity=.35+.5*ss;if(Math.random()<.6)parts.push({k:"spark",x:x+31,y:y+31,vx:(Math.random()-.5)*.6,vy:(Math.random()-.5)*.6,life:.7,s:2+Math.random()*2,r:0});if(p<1){requestAnimationFrame(step);return}sh.style.opacity=0;
+  var hit=Math.abs(lx-E.cx)<75&&Math.abs(ly-(E.cy+10))<70;if(!hit){SFX.play("miss");showTxt("Miss");setTimeout(resetBall,700);return}
   var q=1,qn="",inRing=Math.hypot(lx-E.cx,ly-(E.cy+10))<=rpx+8,f=FX();if(f.every&&S.throws%f.every.n===0){inRing=true;rf=.2;procBuddy("Excellent!")}
   if(inRing){if(rf<.35){q=2;qn="Excellent!"}else if(rf<.65){q=1.5;qn="Great!"}else{q=1.3;qn="Nice!"}}if(curve){q*=1.7;qn=(qn?qn+" ":"")+"Curveball!"}if(qn)showTxt(qn);
   attemptCatch(q,lx,ly)})(t0)}
 function showTxt(s){var t=$("throwTxt");t.textContent=s;t.style.opacity=1;clearTimeout(showTxt.t);showTxt.t=setTimeout(function(){t.style.opacity=0},900)}
-function catchChance(q){var c=E.c,b=E.ball;if(b==="master")return 1;var base=R[c.r].c*Math.max(.45,1.12-.012*E.l),bm=BALLS[b].m;if(b==="beast")bm=c.ub?5:.1;
+function catchChance(q){var c=E.c,b=E.ball;if(b==="crown")return 1;var base=R[c.r].c*Math.max(.45,1.12-.012*E.l),bm=BALLS[b].m;if(b==="rift")bm=c.ub?5:.1;
  var m=bm*q*(E.berry&&BERRIES[E.berry].catch||1)*(1+.1*S.up.glove)*(E.weak?2:1),f=FX();if(f.chance&&Math.random()<f.chance.p){m*=f.chance.x;procBuddy("×"+f.chance.x)}return Math.min(1,1-Math.pow(1-base,m))}
 function attemptCatch(q,lx,ly){E.state="inball";var p=catchChance(q),ok=Math.random()<p,sh=ok?3:Math.floor(Math.random()*3*Math.min(1,p*2.2)),el=$("encMon");
- el.style.transition="transform .35s, opacity .35s";el.style.transform+=" scale(.1)";el.style.opacity=0;burst("spark",lx,ly,18,20);
- var bx=lx-31,by=E.cy+60;setTimeout(function(){setBall(bx,by,.6,0);el.style.transition="";var i=0;(function shake(){if(i<sh){var B=$("ball").firstChild;B.classList.remove("shake");void B.offsetWidth;B.classList.add("shake");i++;setTimeout(shake,850)}else setTimeout(function(){ok?caught():escaped()},300)})()},450)}
+ el.style.transition="transform .35s, opacity .35s";el.style.transform+=" scale(.1)";el.style.opacity=0;burst("spark",lx,ly,18,20);SFX.play("pop");
+ var bx=lx-31,by=E.cy+60;setTimeout(function(){setBall(bx,by,.6,0);el.style.transition="";var i=0;(function shake(){if(i<sh){var B=$("ball").firstChild;B.classList.remove("shake");void B.offsetWidth;B.classList.add("shake");SFX.play("wobble");i++;setTimeout(shake,850)}else setTimeout(function(){ok?caught():escaped()},300)})()},450)}
 function caught(){E.state="caught";var c=E.c,first=!S.dex.caught[c.id],m=newMon(c.id,E.l);S.mons.push(m);if(!S.buddy)S.buddy=m.u;spawns=spawns.filter(function(s){return s!==E.sp});
  var f=FX(),coins=Math.round((R[c.r].coin+f.click)*(1+.2*S.up.charm)*f.inc*(first?2:1));addCoins(coins);var b=buddy(),msg="";if(b&&b!==m){var r=giveXP(b,25*(1+.25*S.up.harness));if(r.levels)msg=xpMsg(b,r)}
- if(f.click)procBuddy("+"+f.click);var B=$("ball").getBoundingClientRect();burst("spark",B.left+30,B.top+30,40,50);
- if(E.ball==="poke"&&Math.random()<.08){S.balls.premier++;msg+=" +1 "+NAMES.balls.premier}
+ if(f.click)procBuddy("+"+f.click);var B=$("ball").getBoundingClientRect();burst("spark",B.left+30,B.top+30,40,50);burst("arc",B.left+30,B.top+30,16,90);SFX.play("caught");
+ if(E.ball==="grove"&&Math.random()<.08){S.balls.honour++;msg+=" +1 "+NAMES.balls.honour}
  setTimeout(function(){openSheet('<div style="text-align:center">'+art(c.id,200)+'<h2>Caught '+c.n+'!</h2><div>'+typeTag(c.t)+' <span class="r-'+c.r+'">'+c.r+'</span> · Lv '+m.l+'</div><p>+'+coins+' coins'+(first?' · NEW dex entry!':'')+'<br>'+(b&&b!==m?'Buddy +25 XP. ':'')+esc(msg)+'</p><button class="pri" id="cOk" style="width:100%">OK</button></div>',null,endEncounter);$("cOk").onclick=function(){closeSheet()};save()},700)}
 function escaped(){var el=$("encMon");el.style.transition="transform .3s, opacity .3s";el.style.opacity=1;var fl=[.08,.12,.16,.22,.3][RANK[E.c.r]]*(E.berry==="silver"?.5:1)*(E.weak?.5:1);E.berry=null;renderEncTop();burst("spark",E.cx,E.cy,14,30);
- if(Math.random()<fl){showTxt(E.c.n+" fled!");spawns=spawns.filter(function(s){return s!==E.sp});setTimeout(endEncounter,1300);return}showTxt("Broke free!");setTimeout(function(){el.style.transition="";resetBall()},800)}
+ if(Math.random()<fl){SFX.play("flee");showTxt(E.c.n+" fled!");spawns=spawns.filter(function(s){return s!==E.sp});setTimeout(endEncounter,1300);return}SFX.play("breakfree");showTxt("Broke free!");setTimeout(function(){el.style.transition="";resetBall()},800)}
 function endEncounter(){encOn=false;E=null;$("enc").classList.remove("on");$("battle").style.display="none";renderHud();save()}
 function procBuddy(txt){var b=buddy();if(!b)return;var el=encOn?document.querySelector("#encTop"):$("buddyPortrait"),r=el.getBoundingClientRect();burst(FXKIND[C[b.id].t],r.left+30,r.top+28,26,36);xpFly(r.left+10,r.top+50,C[b.id].mv+(txt?" "+txt:""))}
 /* ================= battle ================= */
@@ -628,7 +645,7 @@ function showTab(t){tab=t;mapOn=t==="map";document.querySelectorAll("#nav button
 /* ================= HUD ================= */
 function renderHud(){$("hudCoins").textContent=fmt(S.coins);var r=regionAt(S.pos.lon,S.pos.lat),b=biomeAt(S.pos.lon,S.pos.lat),land=onLand(S.pos.lon,S.pos.lat);
  $("hudRegion").textContent=r?rname(r.k):(land?"Wilds of "+land:"Open sea");$("hudBiome").textContent=BIOMES[b].n+" · "+BIOMES[b].t.join("/")+(geoActive()?" · 📍GPS":"");
- var a=activeSeason(),ban=[];if(a&&S.set.season!=="off")ban.push(SEASONS[a].icon+" "+SEASONS[a].n+" season: boosted seasonal spawns");if(safariOpen())ban.push("🦓 "+rname("safari")+" event open ("+(30-new Date().getMinutes())+" min left)");
+ var a=activeSeason(),ban=[];if(a&&S.set.season!=="off")ban.push(SEASONS[a].icon+" "+SEASONS[a].n+" season: boosted seasonal spawns");if(safariOpen())ban.push("🦓 "+rname("wildpark")+" event open ("+(30-new Date().getMinutes())+" min left)");
  $("banner").innerHTML=ban.map(function(x){return "<span>"+x+"</span>"}).join("<br>");$("joy").style.display=S.set.move==="joy"&&!geoActive()?"block":"none"}
 function renderBuddy(){var b=buddy();$("buddyPortrait").innerHTML=b?art(b.id,60,true):""}
 $("buddyPortrait").onclick=function(){var b=buddy();if(b)monDetail(b.u)};
@@ -636,10 +653,10 @@ $("bCenter").onclick=function(){follow=true;if(cam.ppd<PLAY_PPD/4)cam.ppd=PLAY_P
 $("bFly").onclick=function(){flyList()};
 $("bNearby").onclick=nearbySheet;
 function flyList(){var conts={};REGIONS.forEach(function(r){(conts[r.cont]=conts[r.cont]||[]).push(r)});
- openSheet('<h2>✈ Fly anywhere</h2><p class="muted">All regions are unlocked. Or pinch out on the map and tap a region.</p><button class="ghost" id="worldV" style="width:100%">🌍 World view</button>'+Object.keys(conts).map(function(c){return '<h3>'+c+'</h3><div class="chips">'+conts[c].map(function(r){return '<button class="chip" data-fly="'+r.k+'">'+rname(r.k)+(r.k==="safari"&&safariOpen()?" 🦓":"")+'</button>'}).join("")+'</div>'}).join(""),
+ openSheet('<h2>✈ Fly anywhere</h2><p class="muted">All regions are unlocked. Or pinch out on the map and tap a region.</p><button class="ghost" id="worldV" style="width:100%">🌍 World view</button>'+Object.keys(conts).map(function(c){return '<h3>'+c+'</h3><div class="chips">'+conts[c].map(function(r){return '<button class="chip" data-fly="'+r.k+'">'+rname(r.k)+(r.k==="wildpark"&&safariOpen()?" 🦓":"")+'</button>'}).join("")+'</div>'}).join(""),
  function(e){var b=e.target.closest("[data-fly]");if(b)flyTo(b.getAttribute("data-fly"));if(e.target.id==="worldV"){closeSheet();follow=false;cam.ppd=1.6;cam.lon=10;cam.lat=10}})}
 function flySheet(r){var bi=BIOMES[r.biome];openSheet('<h2>'+rname(r.k)+'</h2><p>'+r.cont+' · '+bi.n+'<br><span class="muted">Common types: '+bi.t.join(", ")+(r.rb>1?' · rare bonus ×'+r.rb:'')+'</span></p>'+seasonNote(r)+'<button class="pri" style="width:100%" data-fly="'+r.k+'">✈ Fly here</button>',function(e){var b=e.target.closest("[data-fly]");if(b)flyTo(b.getAttribute("data-fly"))})}
-function seasonNote(r){var o=[];for(var k in SEASONS)if(SEASONS[k].biomes.indexOf(r.biome)>=0)o.push(SEASONS[k].icon+" "+SEASONS[k].n+" creatures spawn here");if(r.k==="safari")o.push("🦓 Timed event: open the first 30 min of every hour; "+NAMES.balls.safari+"s given on entry");return o.length?'<p class="muted">'+o.join("<br>")+'</p>':''}
+function seasonNote(r){var o=[];for(var k in SEASONS)if(SEASONS[k].biomes.indexOf(r.biome)>=0)o.push(SEASONS[k].icon+" "+SEASONS[k].n+" creatures spawn here");if(r.k==="wildpark")o.push("🦓 Timed event: open the first 30 min of every hour; "+NAMES.balls.wildpark+"s given on entry");return o.length?'<p class="muted">'+o.join("<br>")+'</p>':''}
 function flyTo(k){var r=REGIONS.filter(function(x){return x.k===k})[0];if(!r)return;closeSheet();S.pos={lon:r.lon,lat:r.lat};spawns=[];picks=[];target=null;follow=true;cam.lon=r.lon;cam.lat=r.lat;cam.ppd=PLAY_PPD;
  if(geoActive())geo.last=null;for(var i=0;i<4;i++)spawnTick();checkRegion();toast("✈ Flew to "+rname(k));save()}
 function nearbySheet(){var list=spawns.map(function(s){return[s,distM(s.lon,s.lat,S.pos.lon,S.pos.lat)]}).sort(function(a,b){return a[1]-b[1]});
@@ -684,9 +701,34 @@ function hatchEgg(i){var e=S.eggs[i];if(!e||eggProg(e)<1||i>=1+S.up.incub)return
  var pool=C.filter(function(c){if(c.from!==undefined)return false;if(E2.seasonal)return !!c.s&&seasonW(c)>0;return seasonW(c)>0}),ws=pool.map(function(c){var w=R[c.r].w*(E2.b[c.r]!==undefined?E2.b[c.r]:1);if(RANK[c.r]>=2)w*=f.rare;if(E2.seasonal&&activeSeason()===c.s)w*=3;return w});
  if(!pool.length){pool=[C[0]];ws=[1]}var tot=ws.reduce(function(a,b){return a+b},0),r=Math.random()*tot,c=pool[0];for(var k=0;k<pool.length;k++){r-=ws[k];if(r<=0){c=pool[k];break}}
  var first=!S.dex.caught[c.id],m=newMon(c.id,E2.lv+Math.floor(Math.random()*3));S.mons.push(m);if(!S.buddy)S.buddy=m.u;var bk=["honey","ember","dew","moon","silver"],got=[];for(var j=0;j<2+Math.floor(Math.random()*3);j++){var b=bk[Math.floor(Math.random()*bk.length)];S.berries[b]++;got.push(BERRIES[b].n)}
- if(Math.random()<.5){S.balls.premier+=2;got.push("2 "+NAMES.balls.premier+"s")}S.balls.poke+=3;got.push("3 "+NAMES.balls.poke+"s");addCoins(50);save();
- var H2=$("hatch");H2.innerHTML='<div class="eggw" id="hEgg">'+eggSvg(E2.col,true)+'</div><p>Oh? The egg is hatching…</p>';H2.classList.add("on");setTimeout(function(){var c2=H2.querySelector(".crk");if(c2)c2.style.strokeDashoffset="0"},300);
- setTimeout(function(){burst("spark",innerWidth/2,innerHeight/2-40,80,80);H2.innerHTML='<div>'+art(c.id,260,false,true)+'</div><h2>'+c.n+' hatched!</h2><div>'+typeTag(c.t)+' <span class="r-'+c.r+'">'+c.r+'</span> · Lv '+m.l+(first?' · NEW':'')+'</div><p class="muted">'+got.join(", ")+', 50 coins</p><button class="pri" id="hOk" style="min-width:160px">Nice!</button>';$("hOk").onclick=function(){H2.classList.remove("on");if(tab==="bag")renderBag();renderBuddy()}},2000)}
+ if(Math.random()<.5){S.balls.honour+=2;got.push("2 "+NAMES.balls.honour+"s")}S.balls.grove+=3;got.push("3 "+NAMES.balls.grove+"s");addCoins(50);save();
+ var H2=$("hatch");H2.innerHTML='<div class="eggw" id="hEgg">'+eggSvg(E2.col,true)+'</div><p>Oh? The egg is hatching…</p>';H2.classList.add("on");[300,800,1250,1550,1750].forEach(function(t,i){setTimeout(function(){SFX.play("crack");var eg=$("hEgg");if(eg){if(i>=3)eg.classList.add("fast");var r=eg.getBoundingClientRect();burst("rock",r.left+r.width/2+(Math.random()-.5)*40,r.top+r.height*.4,4+i*2,20)}},t)});setTimeout(function(){var c2=H2.querySelector(".crk");if(c2)c2.style.strokeDashoffset="0"},300);
+ setTimeout(function(){burst("spark",innerWidth/2,innerHeight/2-40,80,80);burst("rock",innerWidth/2,innerHeight/2-40,24,50);SFX.play("hatch");var fl=document.createElement("div");fl.className="hflash";document.body.appendChild(fl);setTimeout(function(){fl.remove()},950);H2.innerHTML='<div>'+art(c.id,260,false,true)+'</div><h2>'+c.n+' hatched!</h2><div>'+typeTag(c.t)+' <span class="r-'+c.r+'">'+c.r+'</span> · Lv '+m.l+(first?' · NEW':'')+'</div><p class="muted">'+got.join(", ")+', 50 coins</p><button class="pri" id="hOk" style="min-width:160px">Nice!</button>';$("hOk").onclick=function(){H2.classList.remove("on");if(tab==="bag")renderBag();renderBuddy()}},2000)}
+/* ================= sound (WebAudio synth, no assets) ================= */
+var SFX=(function(){var ac=null,master=null,muted=false;try{muted=localStorage.getItem("cgMute")==="1"}catch(e){}
+ function ctx(){if(muted)return null;if(!ac){var A=window.AudioContext||window.webkitAudioContext;if(!A)return null;try{ac=new A();master=ac.createGain();master.gain.value=.5;master.connect(ac.destination)}catch(e){return null}}if(ac.state==="suspended")ac.resume();return ac}
+ function tone(f,d,o){o=o||{};var a=ctx();if(!a)return;var t=a.currentTime+(o.at||0),os=a.createOscillator(),g=a.createGain();os.type=o.type||"sine";os.frequency.setValueAtTime(f,t);if(o.to)os.frequency.exponentialRampToValueAtTime(o.to,t+d);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(o.v||.25,t+.01);g.gain.exponentialRampToValueAtTime(.0005,t+d);os.connect(g);g.connect(master);os.start(t);os.stop(t+d+.05)}
+ function noise(d,o){o=o||{};var a=ctx();if(!a)return;var t=a.currentTime+(o.at||0),n=Math.floor(a.sampleRate*d),b=a.createBuffer(1,n,a.sampleRate),x=b.getChannelData(0);for(var i=0;i<n;i++)x[i]=Math.random()*2-1;var src=a.createBufferSource(),fl=a.createBiquadFilter(),g=a.createGain();src.buffer=b;fl.type=o.ft||"bandpass";fl.frequency.setValueAtTime(o.f||1200,t);if(o.to)fl.frequency.exponentialRampToValueAtTime(o.to,t+d);fl.Q.value=o.q||1;g.gain.setValueAtTime(o.v||.3,t);g.gain.exponentialRampToValueAtTime(.0005,t+d);src.connect(fl);fl.connect(g);g.connect(master);src.start(t)}
+ var P={tap:function(){tone(660,.05,{type:"triangle",v:.06})},
+  throw:function(){noise(.35,{f:500,to:2400,q:2,v:.25})},
+  miss:function(){tone(300,.25,{type:"sine",to:160,v:.12})},
+  pop:function(){tone(520,.12,{type:"square",to:1200,v:.1});noise(.08,{f:3000,v:.15,at:.02})},
+  wobble:function(){tone(180,.09,{type:"triangle",v:.22});noise(.06,{f:900,v:.12})},
+  caught:function(){[523,659,784,1047].forEach(function(f,i){tone(f,.28,{type:"triangle",v:.18,at:i*.09})});tone(1568,.5,{v:.06,at:.36})},
+  breakfree:function(){noise(.18,{f:1800,q:.8,v:.3});tone(400,.2,{type:"sawtooth",to:200,v:.08})},
+  flee:function(){tone(700,.4,{type:"sine",to:200,v:.12});noise(.4,{f:3000,to:600,v:.12})},
+  crack:function(){noise(.07,{f:2500,q:3,v:.35});tone(1400+Math.random()*600,.04,{type:"square",v:.05})},
+  hatch:function(){noise(.3,{f:1500,to:4000,v:.2});[392,494,587,784].forEach(function(f,i){tone(f,.4,{type:"triangle",v:.16,at:.1+i*.1})})},
+  coin:function(){tone(988,.08,{type:"square",v:.07});tone(1319,.25,{type:"square",v:.07,at:.07})},
+  step:function(){}};
+ return {play:function(k){try{P[k]&&P[k]()}catch(e){}},muted:function(){return muted},toggle:function(){muted=!muted;try{localStorage.setItem("cgMute",muted?"1":"0")}catch(e){}if(muted&&ac&&ac.suspend)ac.suspend();else ctx();syncMute();if(!muted)P.coin()}};})();
+function syncMute(){var b=$("muteBtn");if(b){b.textContent=SFX.muted()?"🔇":"🔊";b.setAttribute("aria-label",SFX.muted()?"Unmute sounds":"Mute sounds")}var s=$("sMute");if(s){s.textContent=SFX.muted()?"Off":"On";s.className=SFX.muted()?"":"pri"}}
+(function(){var b=document.createElement("button");b.id="muteBtn";b.onclick=function(e){e.stopPropagation();SFX.toggle()};document.body.appendChild(b);syncMute();
+ document.addEventListener("click",function(e){var t=e.target.closest&&e.target.closest("button");if(t&&t.id!=="muteBtn")SFX.play("tap")},true)})();
+/* ================= day/night lighting ================= */
+var TINT={morning:"linear-gradient(160deg,#ffb07a26,#ffd9a010 60%,transparent)",day:"linear-gradient(#ffffff08,transparent)",evening:"linear-gradient(160deg,#ff7a3a38,#c0507030 60%,#40306038)",night:"radial-gradient(ellipse at 50% 50%,#10204a40,#06102aa0 85%)"};
+function applyTint(){var k=todNow(),m=$("todTint"),e=$("encTint");if(m)m.style.background=TINT[k];if(e)e.style.background=TINT[k]}
+applyTint();setInterval(applyTint,60000);
 /* ================= dex ================= */
 var dexF="all",dexT="",dexQ="",dexP=0,DEXPG=48;
 function renderDex(){var fs=[["all","All"],["core","Core"],["xmas","🎄 Winterlight"],["hallow","🎃 Hallowshade"],["easter","🌸 Springtide"],["caught","✔ Caught"],["missing","✖ Missing"]];
@@ -705,13 +747,13 @@ function habitats(c){if(c.hb)return REGIONS.filter(function(r){return r.biome===
 function dexDetail(id){var c=C[id],k=S.dex.caught[id]?2:S.dex.seen[id]?1:0;openSheet('<div style="text-align:center'+(k<2?";filter:brightness(0) opacity(.4)":"")+'">'+art(id,240,k<2,k==2)+'</div><h2 style="text-align:center">#'+(id+1)+' '+(k?c.n:"???")+'</h2><div class="card">'+typeTag(c.t)+' <span class="r-'+c.r+'">'+c.r+'</span> · '+c.b+(c.ub?' · '+NAMES.ubClass:'')+(c.s?' · '+SEASONS[c.s].icon+' '+SEASONS[c.s].n:'')+
  '<p><b>Signature move:</b> '+(k==2?c.mv+' (Lv '+SIG_LV+')<br><span class="muted">'+fxDesc(c)+'</span>':'???')+'</p><p class="muted">🏞 Home biome: '+(c.hb?BIOMES[c.hb].n:c.s?SEASONS[c.s].biomes.map(function(b){return BIOMES[b].n}).join(" / "):BIOMES[homeB(c)].n)+' · 🕒 Active: '+(c.tod?TOD[c.tod].icon+' '+TOD[c.tod].n+' only':'All day')+' · ⏳ Stays ~'+Math.round(DESPAWN[c.r][0]/60)+'-'+Math.round(DESPAWN[c.r][1]/60)+' min</p><p class="muted">📍 '+habitats(c).join(", ")+'</p>'+(c.from!==undefined?'<p class="muted">🧬 Evolves from '+(S.dex.seen[c.from]?C[c.from].n:"???")+' at Lv '+c.evoLv+'</p>':'')+(c.evo!==undefined?'<p class="muted">🧬 Evolves into '+(S.dex.seen[c.evo]?C[c.evo].n:"???")+' at Lv '+C[c.evo].evoLv+'</p>':'')+'</div>')}
 /* ================= shop ================= */
-var SHOP=[["Balls",[["poke",10,100],["great",10,300],["ultra",10,700],["beast",5,900]]],["Berries",[["b:honey",5,150],["b:silver",5,150],["b:golden",3,400],["b:ember",5,200],["b:dew",5,200],["b:moon",5,200]]],["XP items",[["x:snack",3,300],["x:feast",1,500]]],["Eggs",[["e:meadow",1,300],["e:sparkle",1,1200],["e:star",1,4000],["e:festive",1,2000]]]];
+var SHOP=[["Balls",[["grove",10,100],["swift",10,300],["prime",10,700],["rift",5,900]]],["Berries",[["b:honey",5,150],["b:silver",5,150],["b:golden",3,400],["b:ember",5,200],["b:dew",5,200],["b:moon",5,200]]],["XP items",[["x:snack",3,300],["x:feast",1,500]]],["Eggs",[["e:meadow",1,300],["e:sparkle",1,1200],["e:star",1,4000],["e:festive",1,2000]]]];
 function price(p){return Math.ceil(p*(1-FX().disc))}
 function itemName(k){if(k.indexOf("b:")===0)return BERRIES[k.slice(2)].n;if(k.indexOf("x:")===0)return XPITEMS[k.slice(2)].n;if(k.indexOf("e:")===0)return EGGS[k.slice(2)].n;return NAMES.balls[k]}
 function renderShop(){if(tab==="shop")setTimeout(safeInitBilling,0);var h='<h2>Shop <span class="muted">🪙 '+fmt(S.coins)+'</span></h2>'+(FX().disc?'<p class="muted">Buddy discount −'+Math.round(FX().disc*100)+'%</p>':'');
  SHOP.forEach(function(g){h+='<h3>'+g[0]+'</h3>';g[1].forEach(function(it,i){if(it[0]==="e:festive"&&S.set.season==="off")return;var p=price(it[2]);h+='<div class="card row"><div class="grow"><b>'+itemName(it[0])+'</b> ×'+it[1]+(it[0].indexOf("e:")===0?'<div class="muted">'+EGGS[it[0].slice(2)].km+' km egg</div>':'')+'</div><button data-buy="'+it[0]+'|'+it[1]+'|'+it[2]+'"'+(S.coins>=p?"":" disabled")+'>🪙 '+p+'</button></div>'})});
  h+='<h3>Upgrades</h3>'+UP.map(function(u){var mx=S.up[u.k]>=u.max,c=Math.floor(u.base*Math.pow(u.g,S.up[u.k]));return '<div class="card row"><div class="grow"><b>'+u.n+'</b> ('+S.up[u.k]+'/'+u.max+')<div class="muted">'+u.d+'</div></div><button data-up="'+u.k+'"'+(mx||S.coins<c?" disabled":"")+'>'+(mx?"MAX":"🪙 "+fmt(c))+'</button></div>'}).join("");
- h+='<h3>Premium</h3><div class="card"><div class="row"><span style="width:44px;height:44px">'+ballSvg("master")+'</span><div class="grow"><b>3× '+NAMES.balls.master+'</b><div class="muted">Always catches.</div></div></div><button class="pri" id="buyPack" style="width:100%;margin-top:8px">'+NAMES.masterPack+packPrice()+'</button>'+(nativeShop()?'':'<p class="muted">Web build: this runs a clearly-labelled TEST purchase (no charge) so you can playtest. Real billing is only in the Android app.</p>')+'</div>';
+ h+='<h3>Premium</h3><div class="card"><div class="row"><span style="width:44px;height:44px">'+ballSvg("crown")+'</span><div class="grow"><b>3× '+NAMES.balls.crown+'</b><div class="muted">Always catches.</div></div></div><button class="pri" id="buyPack" style="width:100%;margin-top:8px">'+NAMES.masterPack+packPrice()+'</button>'+(nativeShop()?'':'<p class="muted">Web build: this runs a clearly-labelled TEST purchase (no charge) so you can playtest. Real billing is only in the Android app.</p>')+'</div>';
  $("v-shop").innerHTML=h;$("buyPack").onclick=purchaseMasterPack}
 $("v-shop").onclick=function(e){var b=e.target.closest("[data-buy]");if(b&&!b.disabled){var a=b.getAttribute("data-buy").split("|"),k=a[0],n=+a[1],p=price(+a[2]);if(S.coins<p)return;
   if(k.indexOf("e:")===0){if(S.eggs.length>=9){toast("Egg storage full (9)");return}S.eggs.push({k:k.slice(2),km:0,start:Date.now()})}else if(k.indexOf("b:")===0)S.berries[k.slice(2)]+=n;else if(k.indexOf("x:")===0)S.xpi[k.slice(2)]+=n;else S.balls[k]+=n;
@@ -736,8 +778,8 @@ function purchaseMasterPack(){
  if(isNativeApp()){var st=window.CdvPurchase.store,pr=st.get(PLAY_PRODUCT_ID,window.CdvPurchase.Platform.GOOGLE_PLAY),o=pr&&pr.getOffer();
   if(!billingReady||!o){toast("Store not ready yet — check your connection and try again");return}
   st.order(o).then(function(err){if(err&&err.code!==window.CdvPurchase.ErrorCode.PAYMENT_CANCELLED)toast("Purchase failed: "+(err.message||err.code))});return}
- S.balls.master+=3;save();toast("🧪 TEST PURCHASE (no charge): +3 "+NAMES.balls.master+"s granted.<br>Real billing is only in the Android app.",3500);if(tab==="shop")renderShop()}
-window.onMasterPackPurchased=function(){S.balls.master+=3;save();toast("+3 "+NAMES.balls.master+"s");if(tab==="shop")renderShop()};
+ S.balls.crown+=3;save();toast("🧪 TEST PURCHASE (no charge): +3 "+NAMES.balls.crown+"s granted.<br>Real billing is only in the Android app.",3500);if(tab==="shop")renderShop()}
+window.onMasterPackPurchased=function(){S.balls.crown+=3;save();toast("+3 "+NAMES.balls.crown+"s");if(tab==="shop")renderShop()};
 function nativeShop(){return typeof isNativeApp==="function"&&isNativeApp()}
 function packPrice(){try{if(nativeShop()){var p=window.CdvPurchase.store.get(PLAY_PRODUCT_ID,window.CdvPurchase.Platform.GOOGLE_PLAY);if(p&&p.pricing&&p.pricing.price)return " – "+p.pricing.price}}catch(e){}return ""}
 /* ================= settings ================= */
@@ -748,8 +790,8 @@ function renderSettings(){var gs={off:"Off",waiting:"Waiting for a location fix�
  '<div class="card"><b>Location</b><div class="row" style="margin-top:6px"><span class="grow">Use device GPS (relative movement)</span><button id="sGeo" class="'+(S.set.geo?"pri":"")+'">'+(S.set.geo?"On":"Off")+'</button></div><div class="muted">'+gs+'. Your real steps move your explorer from wherever you are on the world map. Turn off to use demo movement.</div></div>'+
  '<div class="card"><b>Demo movement</b><div class="chips" style="margin-top:6px"><button class="chip'+(S.set.move==="tap"?" on":"")+'" data-mv="tap">Tap to walk</button><button class="chip'+(S.set.move==="joy"?" on":"")+'" data-mv="joy">Joystick</button></div><div class="chips" style="margin-top:6px">'+[[5,"Walk"],[12,"Jog"],[20,"Bike"],[60,"Demo fast"]].map(function(s){return '<button class="chip'+(S.set.speed===s[0]?" on":"")+'" data-spd="'+s[0]+'">'+s[1]+'</button>'}).join("")+'</div></div>'+
  '<div class="card"><b>Seasonal creatures</b><div class="chips" style="margin-top:6px">'+[["always","Always on"],["auto","Auto"],["off","Off"]].map(function(s){return '<button class="chip'+(S.set.season===s[0]?" on":"")+'" data-se="'+s[0]+'">'+s[1]+'</button>'}).join("")+'</div><div class="muted">Always on: low rate all year, boosted in season (Dec 🎄, Oct 🎃, Mar–Apr 🌸). Auto: only in season.</div></div>'+
- '<div class="card"><b>Save</b><div class="muted">'+(store?"Saved on this device automatically.":"Storage is blocked in this browser: progress will not be kept.")+(S.migrated?" Older save migrated.":"")+'</div><button class="dng" id="sReset" style="width:100%;margin-top:8px">'+(resetArm?"Tap again to erase everything":"Reset game")+'</button></div>'+
- '<p class="muted">'+NAMES.app+' · offline single-file build · all creatures original.</p>'}
+ '<div class="card"><div class="row"><b class="grow">Sound effects</b><button id="sMute"></button></div><div class="muted">Synthesized in-game; also toggle with the 🔊 button.</div></div>'+'<div class="card"><b>Save</b><div class="muted">'+(store?"Saved on this device automatically.":"Storage is blocked in this browser: progress will not be kept.")+(S.migrated?" Older save migrated.":"")+'</div><button class="dng" id="sReset" style="width:100%;margin-top:8px">'+(resetArm?"Tap again to erase everything":"Reset game")+'</button></div>'+
+ '<p class="muted">'+NAMES.app+' · offline single-file build · all creatures original.</p>';var sm=$("sMute");if(sm){sm.onclick=function(e){e.stopPropagation();SFX.toggle()};syncMute()}}
 $("v-set").onclick=function(e){var b=e.target.closest("button");if(!b)return;
  if(b.id==="sGeo"){S.set.geo=!S.set.geo;if(S.set.geo)geoStart();else geoStop()}else if(b.hasAttribute("data-mv"))S.set.move=b.getAttribute("data-mv");else if(b.hasAttribute("data-spd"))S.set.speed=+b.getAttribute("data-spd");
  else if(b.hasAttribute("data-se"))S.set.season=b.getAttribute("data-se");else if(b.id==="sReset"){if(!resetArm){resetArm=1;setTimeout(function(){resetArm=0;if(tab==="set")renderSettings()},4000)}else{resetArm=0;if(store){try{store.removeItem(SAVE_KEY)}catch(x){}}geoStop();S=def();spawns=[];picks=[];target=null;renderAll();toast("Game reset")}}
